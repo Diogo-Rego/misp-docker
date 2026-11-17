@@ -1,0 +1,64 @@
+ARG DOCKER_HUB_PROXY=""
+
+FROM "${DOCKER_HUB_PROXY}ubuntu:24.04" AS python-build
+ENV DEBIAN_FRONTEND=noninteractive
+ARG GUARD_TAG
+ARG GUARD_COMMIT
+
+RUN <<-EOF
+    apt-get update
+    apt-get install -y --no-install-recommends \
+        ca-certificates \
+        git \
+        python3 \
+        python3-pip \
+        python3-venv
+    apt-get autoremove -y && apt-get clean -y && rm -rf /var/lib/apt/lists/*
+EOF
+
+RUN mkdir /wheels
+
+WORKDIR /srv/misp-guard
+
+RUN <<-EOF
+    if [ -n "${GUARD_COMMIT}" ]; then
+        git clone https://github.com/MISP/misp-guard.git . && git checkout "${GUARD_COMMIT}"
+    else
+        git clone --branch "${GUARD_TAG}" --depth 1 https://github.com/MISP/misp-guard.git .
+    fi
+EOF
+
+WORKDIR /srv/misp-guard/src
+RUN pip3 wheel --no-cache-dir -r requirements.txt -w /wheels/
+
+
+
+FROM "${DOCKER_HUB_PROXY}ubuntu:24.04"
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN <<-EOF
+    apt-get update
+    apt-get install -y --no-install-recommends \
+        python3 \
+        python3-pip \
+        jq
+    apt-get autoremove -y && apt-get clean -y && rm -rf /var/lib/apt/lists/*
+EOF
+
+RUN --mount=type=bind,from=python-build,source=/wheels,target=/wheels \
+    pip3 install --no-cache-dir --break-system-packages /wheels/*.whl
+
+# Installation is complete. Remove pip from runtime to reduce attack surface
+RUN python3 -m pip uninstall --yes --break-system-packages pip || true
+
+COPY --from=python-build /srv /srv
+COPY files/ /
+
+ENV GUARD_PORT=8888
+EXPOSE 8888
+
+HEALTHCHECK --interval=2m --timeout=5s --start-period=10s --retries=3 \
+    CMD [ "bash", "-c", "</dev/tcp/127.0.0.1/${GUARD_PORT} || exit 1" ]
+
+WORKDIR /srv/misp-guard/src
+ENTRYPOINT [ "/entrypoint.sh" ]
