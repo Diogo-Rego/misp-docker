@@ -507,6 +507,37 @@ misp-core:
 It is possible to backup and restore the underlying database using volume archiving.
 The process is _NOT_ battle-tested, so it is _NOT_ to be followed uncritically.
 
+### Using PostgreSQL
+
+Starting with MISP 2.5.47+, MISP includes official support for PostgreSQL as an alternative to MySQL/MariaDB.
+`misp-docker` supports both MariaDB/MySQL (default) and PostgreSQL.
+
+#### External PostgreSQL Instance (e.g., AWS RDS, GCP Cloud SQL, Azure, or self-hosted)
+
+To configure `misp-core` to connect to a PostgreSQL database, set the following environment variables in `.env`:
+
+```bash
+DB_ENGINE=postgres
+POSTGRES_HOST=postgres.example.com
+POSTGRES_PORT=5432
+POSTGRES_USER=misp
+POSTGRES_PASSWORD=your_strong_password
+POSTGRES_DATABASE=misp
+POSTGRES_SCHEMA=public
+```
+
+> [!NOTE]
+> Ensure the PostgreSQL database is created with `UTF8` encoding:
+> `CREATE DATABASE misp OWNER misp ENCODING 'UTF8';`
+
+#### Running PostgreSQL with Docker Compose (Local / Dev)
+
+You can use the provided `docker-compose.postgres.yml` compose override to run a local PostgreSQL 16 container instead of MariaDB:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.postgres.yml up -d
+```
+
 ### Backup
 
 1. Stop the MISP containers:

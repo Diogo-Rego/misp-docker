@@ -37,7 +37,12 @@ setting_is_set_alt() {
     if $setting_in_config_file; then
         return 0
     elif $db_settings_enabled; then
-        local setting_in_db=$(echo "SELECT EXISTS(SELECT 1 FROM $MYSQL_DATABASE.system_settings WHERE setting = \"${setting}\");" | ${MYSQL_CMD})
+        local setting_in_db=0
+        if [[ "$DB_ENGINE" == "postgres" ]]; then
+            setting_in_db=$(echo "SELECT (EXISTS(SELECT 1 FROM system_settings WHERE setting = '${setting}'))::int;" | ${DB_CMD} 2>/dev/null)
+        else
+            setting_in_db=$(echo "SELECT EXISTS(SELECT 1 FROM system_settings WHERE setting = '${setting}');" | ${DB_CMD:-$MYSQL_CMD} 2>/dev/null)
+        fi
         if [[ $setting_in_db -eq 1 ]]; then
             return 0
         fi

@@ -7,20 +7,48 @@ export NUM_WORKERS_EMAIL=${NUM_WORKERS_EMAIL:-${WORKERS:-5}}
 export NUM_WORKERS_UPDATE=${NUM_WORKERS_UPDATE:-${WORKERS:-1}}
 export NUM_WORKERS_CACHE=${NUM_WORKERS_CACHE:-${WORKERS:-5}}
 
-export MYSQL_HOST=${MYSQL_HOST:-db}
-export MYSQL_PORT=${MYSQL_PORT:-3306}
-export MYSQL_USER=${MYSQL_USER:-misp}
-export MYSQL_PASSWORD=${MYSQL_PASSWORD:-example}
-export MYSQL_DATABASE=${MYSQL_DATABASE:-misp}
-export MYSQL_CMD="mysql -u $MYSQL_USER -p$MYSQL_PASSWORD -P $MYSQL_PORT -h $MYSQL_HOST -r -N $MYSQL_DATABASE"
-export MYSQL_TLS=${MYSQL_TLS:-false}
-export MYSQL_TLS_CA=${MYSQL_TLS_CA}
-export MYSQL_TLS_CERT=${MYSQL_TLS_CERT}
-export MYSQL_TLS_KEY=${MYSQL_TLS_KEY}
-if [[ "${MYSQL_TLS}" != true ]]; then
-  MYSQL_CMD+=" --skip-ssl"
-  export MYSQL_CMD
+export DB_ENGINE=${DB_ENGINE:-mysql}
+
+if [[ "$DB_ENGINE" =~ ^(postgres|postgresql)$ ]]; then
+    export DB_ENGINE="postgres"
+    export POSTGRES_HOST=${POSTGRES_HOST:-${DB_HOST:-db}}
+    export POSTGRES_PORT=${POSTGRES_PORT:-${DB_PORT:-5432}}
+    export POSTGRES_USER=${POSTGRES_USER:-${DB_USER:-misp}}
+    export POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-${DB_PASSWORD:-example}}
+    export POSTGRES_DATABASE=${POSTGRES_DATABASE:-${DB_DATABASE:-misp}}
+    export POSTGRES_SCHEMA=${POSTGRES_SCHEMA:-${DB_SCHEMA:-public}}
+    export DB_HOST="$POSTGRES_HOST"
+    export DB_PORT="$POSTGRES_PORT"
+    export DB_USER="$POSTGRES_USER"
+    export DB_PASSWORD="$POSTGRES_PASSWORD"
+    export DB_DATABASE="$POSTGRES_DATABASE"
+    export DB_SCHEMA="$POSTGRES_SCHEMA"
+    export PGPASSWORD="$POSTGRES_PASSWORD"
+    export DB_CMD="psql -h $POSTGRES_HOST -p $POSTGRES_PORT -U $POSTGRES_USER -d $POSTGRES_DATABASE -t -A"
+else
+    export DB_ENGINE="mysql"
+    export MYSQL_HOST=${MYSQL_HOST:-${DB_HOST:-db}}
+    export MYSQL_PORT=${MYSQL_PORT:-${DB_PORT:-3306}}
+    export MYSQL_USER=${MYSQL_USER:-${DB_USER:-misp}}
+    export MYSQL_PASSWORD=${MYSQL_PASSWORD:-${DB_PASSWORD:-example}}
+    export MYSQL_DATABASE=${MYSQL_DATABASE:-${DB_DATABASE:-misp}}
+    export DB_HOST="$MYSQL_HOST"
+    export DB_PORT="$MYSQL_PORT"
+    export DB_USER="$MYSQL_USER"
+    export DB_PASSWORD="$MYSQL_PASSWORD"
+    export DB_DATABASE="$MYSQL_DATABASE"
+    export MYSQL_CMD="mysql -u $MYSQL_USER -p$MYSQL_PASSWORD -P $MYSQL_PORT -h $MYSQL_HOST -r -N $MYSQL_DATABASE"
+    export MYSQL_TLS=${MYSQL_TLS:-false}
+    export MYSQL_TLS_CA=${MYSQL_TLS_CA}
+    export MYSQL_TLS_CERT=${MYSQL_TLS_CERT}
+    export MYSQL_TLS_KEY=${MYSQL_TLS_KEY}
+    if [[ "${MYSQL_TLS}" != true ]]; then
+      MYSQL_CMD+=" --skip-ssl"
+    fi
+    export MYSQL_CMD
+    export DB_CMD="$MYSQL_CMD"
 fi
+
 export REDIS_HOST=${REDIS_HOST:-redis}
 export REDIS_PORT=${REDIS_PORT:-6379}
 export ENABLE_REDIS_EMPTY_PASSWORD=${ENABLE_REDIS_EMPTY_PASSWORD:-false}

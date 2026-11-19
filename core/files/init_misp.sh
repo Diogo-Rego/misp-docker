@@ -119,18 +119,34 @@ EOT
     # Avoid sed -i which creates temp files alongside the target,
     # broken on VirtioFS (Docker Desktop for Mac).
     chmod +w $MISP_APP_CONFIG_PATH/database.php
-    safe_sed_i "s/'host'\s*=>\s*'.*'/'host' => '$MYSQL_HOST'/" $MISP_APP_CONFIG_PATH/database.php
-    safe_sed_i "s/'login'\s*=>\s*'.*'/'login' => '$MYSQL_USER'/" $MISP_APP_CONFIG_PATH/database.php
-    safe_sed_i "s/'port'\s*=>\s*[0-9]*/'port' => $MYSQL_PORT/" $MISP_APP_CONFIG_PATH/database.php
-    safe_sed_i "s/'password'\s*=>\s*'.*'/'password' => '$MYSQL_PASSWORD'/" $MISP_APP_CONFIG_PATH/database.php
-    safe_sed_i "s/'database'\s*=>\s*'.*'/'database' => '$MYSQL_DATABASE'/" $MISP_APP_CONFIG_PATH/database.php
+    if [[ "$DB_ENGINE" == "postgres" ]]; then
+        safe_sed_i "s/'datasource'\s*=>\s*'.*'/'datasource' => 'Database\/PostgresObserverExtended'/" $MISP_APP_CONFIG_PATH/database.php
+        safe_sed_i "s/'host'\s*=>\s*'.*'/'host' => '$DB_HOST'/" $MISP_APP_CONFIG_PATH/database.php
+        safe_sed_i "s/'login'\s*=>\s*'.*'/'login' => '$DB_USER'/" $MISP_APP_CONFIG_PATH/database.php
+        safe_sed_i "s/'port'\s*=>\s*[0-9]*/'port' => $DB_PORT/" $MISP_APP_CONFIG_PATH/database.php
+        safe_sed_i "s/'password'\s*=>\s*'.*'/'password' => '$DB_PASSWORD'/" $MISP_APP_CONFIG_PATH/database.php
+        safe_sed_i "s/'database'\s*=>\s*'.*'/'database' => '$DB_DATABASE'/" $MISP_APP_CONFIG_PATH/database.php
+        safe_sed_i "s/'encoding'\s*=>\s*'.*'/'encoding' => 'utf8'/" $MISP_APP_CONFIG_PATH/database.php
+        if grep -qE "^\s*'schema'\s*=>" "$MISP_APP_CONFIG_PATH/database.php"; then
+            safe_sed_i "s/'schema'\s*=>\s*'.*'/'schema' => '$DB_SCHEMA'/" $MISP_APP_CONFIG_PATH/database.php
+        else
+            safe_sed_i "/'database'\s*=>/a \\        'schema' => '$DB_SCHEMA'," "$MISP_APP_CONFIG_PATH/database.php"
+        fi
+    else
+        safe_sed_i "s/'datasource'\s*=>\s*'.*'/'datasource' => 'Database\/MysqlObserverExtended'/" $MISP_APP_CONFIG_PATH/database.php
+        safe_sed_i "s/'host'\s*=>\s*'.*'/'host' => '$MYSQL_HOST'/" $MISP_APP_CONFIG_PATH/database.php
+        safe_sed_i "s/'login'\s*=>\s*'.*'/'login' => '$MYSQL_USER'/" $MISP_APP_CONFIG_PATH/database.php
+        safe_sed_i "s/'port'\s*=>\s*[0-9]*/'port' => $MYSQL_PORT/" $MISP_APP_CONFIG_PATH/database.php
+        safe_sed_i "s/'password'\s*=>\s*'.*'/'password' => '$MYSQL_PASSWORD'/" $MISP_APP_CONFIG_PATH/database.php
+        safe_sed_i "s/'database'\s*=>\s*'.*'/'database' => '$MYSQL_DATABASE'/" $MISP_APP_CONFIG_PATH/database.php
 
-    # Enable MySQL TLS immediately, as TLS requiring hosts like AWS RDS may banlist non-TLS connecting hosts
-    # Conversely, this is also a good spot to disable it if required
+        # Enable MySQL TLS immediately, as TLS requiring hosts like AWS RDS may banlist non-TLS connecting hosts
+        # Conversely, this is also a good spot to disable it if required
 
-    update_database_tls_config ssl_ca "$MYSQL_TLS_CA" "$MISP_APP_CONFIG_PATH/database.php" "$MYSQL_TLS"
-    update_database_tls_config ssl_cert "$MYSQL_TLS_CERT" "$MISP_APP_CONFIG_PATH/database.php" "$MYSQL_TLS"
-    update_database_tls_config ssl_key "$MYSQL_TLS_KEY" "$MISP_APP_CONFIG_PATH/database.php" "$MYSQL_TLS"
+        update_database_tls_config ssl_ca "$MYSQL_TLS_CA" "$MISP_APP_CONFIG_PATH/database.php" "$MYSQL_TLS"
+        update_database_tls_config ssl_cert "$MYSQL_TLS_CERT" "$MISP_APP_CONFIG_PATH/database.php" "$MYSQL_TLS"
+        update_database_tls_config ssl_key "$MYSQL_TLS_KEY" "$MISP_APP_CONFIG_PATH/database.php" "$MYSQL_TLS"
+    fi
 
     echo "... initialize email.php settings"
     chmod +w $MISP_APP_CONFIG_PATH/email.php

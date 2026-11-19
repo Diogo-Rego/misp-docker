@@ -1,0 +1,31 @@
+services:
+  db:
+    image: ${REGISTRY_MIRROR_URL:-}ghcr.io/postgres/postgres:16-alpine
+    restart: always
+    environment:
+      - "POSTGRES_USER=${POSTGRES_USER:-misp}"
+      - "POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-example}"
+      - "POSTGRES_DB=${POSTGRES_DATABASE:-misp}"
+      - "TZ=${TZ:-UTC}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data:Z
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-misp} -d $${POSTGRES_DB:-misp}"]
+      interval: 2s
+      timeout: 1s
+      retries: 3
+      start_period: 10s
+      start_interval: 5s
+
+  misp-core:
+    environment:
+      - "DB_ENGINE=postgres"
+      - "POSTGRES_HOST=db"
+      - "POSTGRES_PORT=5432"
+      - "POSTGRES_USER=${POSTGRES_USER:-misp}"
+      - "POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-example}"
+      - "POSTGRES_DATABASE=${POSTGRES_DATABASE:-misp}"
+      - "POSTGRES_SCHEMA=${POSTGRES_SCHEMA:-public}"
+
+volumes:
+  postgres_data:

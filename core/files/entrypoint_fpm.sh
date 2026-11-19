@@ -8,18 +8,33 @@ term_proc() {
 
 trap term_proc SIGTERM
 
-init_mysql() {
-    # Test when MySQL is ready....
-    # wait for Database come ready
+init_database() {
+    # Test when Database is ready....
+    # wait for Database to come ready
     isDBup () {
-        echo "SHOW STATUS" | $MYSQL_CMD 1>/dev/null
-        echo $?
+        if [[ "$DB_ENGINE" == "postgres" ]]; then
+            pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_DATABASE" >/dev/null 2>&1
+            echo $?
+        else
+            echo "SHOW STATUS" | $MYSQL_CMD 1>/dev/null 2>&1
+            echo $?
+        fi
     }
 
     isDBinitDone () {
-        # Table attributes has existed since at least v2.1
-        echo "DESCRIBE attributes" | $MYSQL_CMD 1>/dev/null
-        echo $?
+        if [[ "$DB_ENGINE" == "postgres" ]]; then
+            local count
+            count=$(echo "SELECT count(*) FROM information_schema.tables WHERE table_schema = '${DB_SCHEMA:-public}' AND table_name = 'attributes';" | $DB_CMD 2>/dev/null)
+            if [[ "$count" -ge 1 ]] 2>/dev/null; then
+                echo 0
+            else
+                echo 1
+            fi
+        else
+            # Table attributes has existed since at least v2.1
+            echo "DESCRIBE attributes" | $MYSQL_CMD 1>/dev/null 2>&1
+            echo $?
+        fi
     }
 
     RETRY=100
@@ -29,7 +44,7 @@ init_mysql() {
         RETRY=$(( RETRY - 1))
     done
     if [ $RETRY -le 0 ]; then
-        >&2 echo "... error: Could not connect to Database on $MYSQL_HOST:$MYSQL_PORT"
+        >&2 echo "... error: Could not connect to Database on $DB_HOST:$DB_PORT"
         exit 1
     fi
 
@@ -37,9 +52,22 @@ init_mysql() {
         echo "... database has already been initialized"
         export DB_ALREADY_INITIALISED=true
     else
-        echo "... database has not been initialized, importing MySQL scheme..."
-        $MYSQL_CMD < /var/www/MISP/INSTALL/MYSQL.sql
+        if [[ "$DB_ENGINE" == "postgres" ]]; then
+            echo "... database has not been initialized, importing PostgreSQL scheme..."
+            PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_DATABASE" -v ON_ERROR_STOP=1 -f /var/www/MISP/INSTALL/POSTGRESQL.sql
+            if [ $? -ne 0 ]; then
+                >&2 echo "... error: Failed to import PostgreSQL schema"
+                exit 1
+            fi
+        else
+            echo "... database has not been initialized, importing MySQL scheme..."
+            $MYSQL_CMD < /var/www/MISP/INSTALL/MYSQL.sql
+        fi
     fi
+}
+
+init_mysql() {
+    init_database "$@"
 }
 
 redirect_logs() {
@@ -148,9 +176,9 @@ fi
 
 echo "INIT | Loading environment and functions"
 
-# Initialize MySQL
-echo "INIT | Initialize MySQL ..."
-init_mysql
+# Initialize Database
+echo "INIT | Initialize Database ..."
+init_database
 
 echo "INIT | Change PHP values ..."
 change_php_vars

@@ -282,6 +282,15 @@ services:
           "pull_rules": "${SYNCSERVERS_1_PULL_RULES}",
           "pull": true
         }
+      # database settings
+      - "DB_ENGINE=${DB_ENGINE:-mysql}"
+      # postgres settings
+      - "POSTGRES_HOST=${POSTGRES_HOST:-db}"
+      - "POSTGRES_PORT=${POSTGRES_PORT:-5432}"
+      - "POSTGRES_USER=${POSTGRES_USER:-misp}"
+      - "POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-example}"
+      - "POSTGRES_DATABASE=${POSTGRES_DATABASE:-misp}"
+      - "POSTGRES_SCHEMA=${POSTGRES_SCHEMA:-public}"
       # mysql settings
       - "MYSQL_HOST=${MYSQL_HOST:-db}"
       - "MYSQL_PORT=${MYSQL_PORT:-3306}"
