@@ -538,45 +538,110 @@ You can use the provided `docker-compose.postgres.yml` compose override to run a
 docker compose -f docker-compose.yml -f docker-compose.postgres.yml up -d
 ```
 
-### Backup
+### Volume-based Backup and Restore
+
+It is possible to backup and restore the underlying database volume using volume archiving when running the database container locally.
+The process is _NOT_ battle-tested, so it is _NOT_ to be followed uncritically.
+
+#### Backup (Volume)
 
 1. Stop the MISP containers:
 
    ```bash
+   # For MySQL / MariaDB (default):
    docker compose down
+
+   # For PostgreSQL:
+   docker compose -f docker-compose.yml -f docker-compose.postgres.yml down
    ```
 
-2. Create an archive of the `misp-docker_mysql_data` volume using `tar`:
+2. Create an archive of the database volume using `tar`:
 
    ```bash
+   # For MySQL / MariaDB:
    tar -cvzf /root/misp_mysql_backup.tar.gz /var/lib/docker/volumes/misp-docker_mysql_data/
+
+   # For PostgreSQL:
+   tar -cvzf /root/misp_postgres_backup.tar.gz /var/lib/docker/volumes/misp-docker_postgres_data/
    ```
 
 3. Start the MISP containers:
 
    ```bash
-   docker compose up
+   # For MySQL / MariaDB (default):
+   docker compose up -d
+
+   # For PostgreSQL:
+   docker compose -f docker-compose.yml -f docker-compose.postgres.yml up -d
    ```
 
-### Restore
+#### Restore (Volume)
 
 1. Stop the MISP containers:
 
    ```bash
+   # For MySQL / MariaDB (default):
    docker compose down
+
+   # For PostgreSQL:
+   docker compose -f docker-compose.yml -f docker-compose.postgres.yml down
    ```
 
 2. Unpack the backup and overwrite existing data by using the `--overwrite` option to replace existing files:
 
    ```bash
+   # For MySQL / MariaDB:
    tar -xvzf /path_to_backup/misp_mysql_backup.tar.gz -C /var/lib/docker/volumes/misp-docker_mysql_data/ --overwrite
+
+   # For PostgreSQL:
+   tar -xvzf /path_to_backup/misp_postgres_backup.tar.gz -C /var/lib/docker/volumes/misp-docker_postgres_data/ --overwrite
    ```
 
 3. Start the MISP containers:
 
    ```bash
-   docker compose up
+   # For MySQL / MariaDB (default):
+   docker compose up -d
+
+   # For PostgreSQL:
+   docker compose -f docker-compose.yml -f docker-compose.postgres.yml up -d
    ```
+
+### Logical Backup and Restore (Recommended for PostgreSQL)
+
+For PostgreSQL (both local containers and cloud-managed databases such as AWS RDS, GCP Cloud SQL, or Azure), using native logical dumps with `pg_dump` and `psql` / `pg_restore` is the recommended and safest approach.
+
+#### Backup (pg_dump)
+
+* **Local container:**
+  ```bash
+  # Plain SQL text format:
+  docker compose -f docker-compose.yml -f docker-compose.postgres.yml exec -T db pg_dump -U misp -d misp > misp_postgres_backup.sql
+
+  # Compressed custom format:
+  docker compose -f docker-compose.yml -f docker-compose.postgres.yml exec -T db pg_dump -U misp -d misp -F c > misp_postgres_backup.dump
+  ```
+
+* **Remote / Cloud instance (RDS / Cloud SQL):**
+  ```bash
+  PGPASSWORD="your_password" pg_dump -h <HOST> -p 5432 -U misp -d misp -F c -f misp_postgres_backup.dump
+  ```
+
+#### Restore (psql / pg_restore)
+
+* **Local container:**
+  ```bash
+  # Restore from plain SQL text:
+  docker compose -f docker-compose.yml -f docker-compose.postgres.yml exec -i db psql -U misp -d misp < misp_postgres_backup.sql
+
+  # Restore from custom format (.dump):
+  docker compose -f docker-compose.yml -f docker-compose.postgres.yml exec -i db pg_restore -U misp -d misp --clean --if-exists -v < misp_postgres_backup.dump
+  ```
+
+* **Remote / Cloud instance (RDS / Cloud SQL):**
+  ```bash
+  PGPASSWORD="your_password" pg_restore -h <HOST> -p 5432 -U misp -d misp --clean --if-exists -v misp_postgres_backup.dump
+  ```
 
 ## stunnel service
 
